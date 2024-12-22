@@ -1,1 +1,3 @@
-*.txt
+inputs
+.ghc.environment.*
+dist-newstyle
