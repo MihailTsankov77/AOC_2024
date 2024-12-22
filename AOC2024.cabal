@@ -59,7 +59,7 @@ executable AOC2024
 
     -- .hs or .lhs file containing the Main module.
     main-is:          day_01.hs
-    -- other-modules:    $(find app -name 'day_*.hs' -exec basename {} .hs \; | tr '\n' ',')
+    other-modules:    day_02.hs
 
 
     -- Modules included in this executable, other than Main.
