@@ -1,8 +1,3 @@
-import qualified Data.HashMap.Strict as HashMap
-import Data.Hashable (Hashable)
-import Data.List (sort)
-import qualified Data.Maybe
-
 day_02_input :: FilePath
 day_02_input = "./inputs/day_02/input.txt"
 
