@@ -9,7 +9,7 @@ splitInt x = getAllTextMatches (x =~ "-?[0-9]+") :: [String]
 parseLine :: String -> (Int, Int, Int, Int)
 parseLine line = (read a, read b, read c, read d) where [a, b, c, d] = splitInt line
 
--- getDataFromFile :: FilePath -> IO [(Int, Int, Int, Int)]
+getDataFromFile :: FilePath -> IO [(Int, Int, Int, Int)]
 getDataFromFile fileName = do
   contents <- readFile fileName
   let fileLines = lines contents
