@@ -2,9 +2,10 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.PSQueue (Binding (..), PSQ)
 import qualified Data.PSQueue as PSQ
+import Debug.Trace (trace)
 
 f_name :: FilePath
-f_name = "./inputs/day_16/input.txt"
+f_name = "./inputs/day_16/input_test.txt"
 
 type Position = (Int, Int)
 
@@ -138,3 +139,169 @@ part1 = do
   (grid, start, end) <- getDataFromFile f_name
 
   return $ dijkstra grid (start, 1) end
+
+-- Part 2
+
+type Previous = HashMap Position [Position]
+
+-- ds_loop_part2 :: Grid -> Dist -> PQ -> Previous -> Position -> Previous
+-- ds_loop_part2 grid dist pq prev end =
+--   if (fst cur_pos) == (-1, -1)
+--     then prev
+--     else handle_loop cur_pos cur_dist
+--   where
+--     (cur_pos, cur_dist) = get_key_value_of_pq pq
+--     pq' = PSQ.deleteMin pq
+
+--     handle_loop :: CurrentPosition -> Int -> Previous
+--     handle_loop c_pos c_dist =
+--       -- if end_dist /= -1 && c_dist > end_dist
+--       --   then prev
+--       --   else
+--       ( if (cur_min_dist /= -1 && c_dist > cur_min_dist) || ((fst c_pos) == end)
+--           then ds_loop_part2 grid dist pq' prev end
+--           else start_next_iter grid dist' pq' prev c_pos c_dist
+--       )
+--       where
+--         end_dist = fromMaybe (-1) $ HashMap.lookup end dist
+
+--         cur_min_dist = fromMaybe (-1) $ HashMap.lookup (fst c_pos) dist
+
+--         dist' =
+--           if cur_min_dist /= -1 && c_dist >= cur_min_dist
+--             then dist
+--             else HashMap.insert (fst c_pos) c_dist dist
+
+--         start_next_iter :: Grid -> Dist -> PQ -> Previous -> CurrentPosition -> Int -> Previous
+--         start_next_iter grid dist pq prev cur_pos cur_dist = ds_loop_part2 grid ndist npq nprev end
+--           where
+--             (ndist, npq, nprev) = loop_neighbors grid dist pq prev cur_pos cur_dist
+
+--     loop_neighbors :: Grid -> Dist -> PQ -> Previous -> CurrentPosition -> Int -> (Dist, PQ, Previous)
+--     loop_neighbors grid dist pq prev cur_pos cur_dist =
+--       foldl (consume_neighbors cur_pos cur_dist) (dist, pq, prev) (fromMaybe [] $ HashMap.lookup (fst cur_pos) grid)
+
+--     consume_neighbors :: CurrentPosition -> Int -> (Dist, PQ, Previous) -> Position -> (Dist, PQ, Previous)
+--     consume_neighbors cur_pos cur_dist (dist, pq, prev) n =
+--       trace ("\n[consume_neighbors] n_dist=" ++ show n_dist ++ " new_dist=" ++ show new_dist ++ " cur_pos=" ++ show cur_pos ++ "ne=" ++ show n) $
+--         if n_dist == -1 || n_dist > new_dist
+--           then (dist, PSQ.insert new_cur_pos new_dist pq, HashMap.insert n ([fst cur_pos]) prev)
+--           else
+--             ( if n_dist == new_dist
+--                 then error "HOOO" -- (dist, PSQ.insert new_cur_pos new_dist pq, HashMap.insert n ((fst cur_pos) : (fromMaybe [] $ HashMap.lookup n prev)) prev)
+--                 else (dist, pq, prev)
+--             )
+--       where
+--         n_dist = fromMaybe (-1) $ HashMap.lookup n dist
+
+--         new_cur_pos = get_new_cur_pos cur_pos n
+--         new_dist = cur_dist + (calculate_distance cur_pos new_cur_pos)
+
+-- dijkstra_part2 :: Grid -> CurrentPosition -> Position -> Previous
+-- dijkstra_part2 grid start end = ds_loop_part2 grid dist pq prev end
+--   where
+--     dist = HashMap.empty
+--     prev = HashMap.empty
+--     pq = PSQ.insert start 0 PSQ.empty
+
+dijkstra_part2 :: Grid -> CurrentPosition -> Position -> Previous
+dijkstra_part2 grid start end = ds_loop_part2 grid dist pq prev end
+  where
+    dist = HashMap.empty
+    prev = HashMap.empty
+    pq = PSQ.insert start 0 PSQ.empty
+
+ds_loop_part2 :: Grid -> Dist -> PQ -> Previous -> Position -> Previous
+ds_loop_part2 grid dist pq prev end =
+  if (fst cur_pos) == (-1, -1)
+    then prev
+    else handle_loop cur_pos cur_dist
+  where
+    (cur_pos, cur_dist) = get_key_value_of_pq pq
+    pq' = PSQ.deleteMin pq
+
+    handle_loop :: CurrentPosition -> Int -> Previous
+    handle_loop c_pos c_dist =
+      if (cur_min_dist /= -1 && c_dist > cur_min_dist) || (fst c_pos == end)
+        then ds_loop_part2 grid dist pq' prev end
+        else start_next_iter grid dist' pq' prev c_pos c_dist
+      where
+        -- distance to the end (if stored)
+        end_dist = fromMaybe (-1) $ HashMap.lookup end dist
+        -- current node’s distance (if stored)
+        cur_min_dist = fromMaybe (-1) $ HashMap.lookup (fst c_pos) dist
+
+        -- If this node's distance is better than what we had, update it
+        dist' =
+          if cur_min_dist /= -1 && c_dist >= cur_min_dist
+            then dist
+            else HashMap.insert (fst c_pos) c_dist dist
+
+        start_next_iter :: Grid -> Dist -> PQ -> Previous -> CurrentPosition -> Int -> Previous
+        start_next_iter grid dist pq prev cur_pos cur_dist =
+          ds_loop_part2 grid ndist npq nprev end
+          where
+            (ndist, npq, nprev) =
+              loop_neighbors grid dist pq prev cur_pos cur_dist
+
+    loop_neighbors ::
+      Grid ->
+      Dist ->
+      PQ ->
+      Previous ->
+      CurrentPosition ->
+      Int ->
+      (Dist, PQ, Previous)
+    loop_neighbors grid dist pq prev cur_pos cur_dist =
+      foldl
+        (consume_neighbors cur_pos cur_dist)
+        (dist, pq, prev)
+        (fromMaybe [] $ HashMap.lookup (fst cur_pos) grid)
+
+    -- This is the critical function where we update 'prev' so that
+    -- it *accumulates* all possible parents of a node (when distances tie).
+    consume_neighbors ::
+      CurrentPosition ->
+      Int ->
+      (Dist, PQ, Previous) ->
+      Position ->
+      (Dist, PQ, Previous)
+    consume_neighbors (cPos, _) cDist (dist, pq, prev) n =
+      -- If we found a strictly better distance, update distances and 'prev'
+      if n_dist == -1 || n_dist > new_dist
+        then
+          ( HashMap.insert n new_dist dist,
+            PSQ.insert (n, new_dist) new_dist pq,
+            HashMap.insert n [cPos] prev
+          )
+        else
+          -- If it's an *equal* distance, accumulate one more predecessor
+          if n_dist == new_dist
+            then
+              ( dist,
+                PSQ.insert (n, new_dist) new_dist pq,
+                HashMap.insert n (cPos : fromMaybe [] (HashMap.lookup n prev)) prev
+              )
+            else
+              (dist, pq, prev)
+      where
+        n_dist = fromMaybe (-1) $ HashMap.lookup n dist
+        new_dist = cDist + calculate_distance (cPos, 0) (n, 0)
+
+unique :: [Position] -> [Position]
+unique [] = []
+unique (x : xs) = x : unique (filter (/= x) xs)
+
+get_all_paths :: Previous -> Position -> [Position]
+get_all_paths prev cur = cur_prevs ++ concatMap (get_all_paths prev) cur_prevs
+  where
+    cur_prevs = fromMaybe [] $ HashMap.lookup cur prev
+
+part2 = do
+  (grid, start, end) <- getDataFromFile f_name
+
+  let prev = dijkstra_part2 grid (start, 1) end
+
+  return $ length $ unique $ get_all_paths prev end
+
+-- \
