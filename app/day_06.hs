@@ -5,7 +5,7 @@ import Debug.Trace
 import Text.Regex.TDFA
 
 f_name :: FilePath
-f_name = "./inputs/day_06/input_test.txt"
+f_name = "./inputs/day_06/input.txt"
 
 fromMaybe :: a -> Maybe a -> a
 fromMaybe _ (Just x) = x
@@ -76,48 +76,29 @@ part1 = do
 
 -- Part 2
 
-check_is_cycle :: Grid -> (Position, Int) -> Position -> Dimension -> Int -> Bool
-check_is_cycle grid init pos dim rotation =
-  if init == (pos, rotation)
-    then True
-    else
-      ( if is_outside dim pos
-          then False
-          else
-            ( if next_value == 1
-                then check_is_cycle grid init pos dim (rotate rotation)
-                else check_is_cycle grid init next_pos dim rotation
-            )
-      )
-  where
-    next_pos = get_movement rotation pos
-    next_value = lookupWithDefault 0 next_pos grid
-
-consume_part2 :: Grid -> Position -> Dimension -> Int -> Int -> Visited -> Int
-consume_part2 grid pos dim rotation count visited =
+check_is_cycle :: Grid -> Position -> Int -> Dimension -> HashMap Position [Int] -> Bool
+check_is_cycle grid pos rotation dim visited =
   if is_outside dim pos
-    then count
+    then False
     else
-      ( if next_value == 1
-          then consume_part2 grid pos dim (rotate rotation) count' visited'
-          else consume_part2 grid next_pos dim rotation count' visited'
-      )
+      if rotation `elem` (lookupWithDefault [] pos visited)
+        then True
+        else
+          ( if next_value == 1
+              then check_is_cycle grid pos (rotate rotation) dim visited'
+              else check_is_cycle grid next_pos rotation dim visited'
+          )
   where
-    visited' = HashMap.insert pos True visited
+    visited' = HashMap.insertWith (++) pos [rotation] visited
 
     next_pos = get_movement rotation pos
     next_value = lookupWithDefault 0 next_pos grid
-
-    was_visited = lookupWithDefault False pos visited
-
-    count' =
-      if was_visited && (check_is_cycle (HashMap.insert (get_movement rotation next_pos) 1 grid) (next_pos, rotation) next_pos dim (rotate rotation))
-        then count + 1
-        else count
 
 part2 = do
   (grid, pos, dim) <- getDataFromFile f_name
 
-  let count = consume_part2 grid pos dim 0 0 HashMap.empty
+  let visited = consume grid pos dim 0 HashMap.empty
 
-  return count
+  let grids_with_replaced_visited = map (\(p, _) -> HashMap.insert p 1 grid) $ filter (\(_, v) -> v) $ HashMap.toList visited
+
+  return $ length $ filter (\g -> check_is_cycle g pos 0 dim HashMap.empty) grids_with_replaced_visited
