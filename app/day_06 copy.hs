@@ -93,7 +93,7 @@ check_is_cycle grid init pos dim rotation =
     next_pos = get_movement rotation pos
     next_value = lookupWithDefault 0 next_pos grid
 
-consume_part2 :: Grid -> Position -> Dimension -> Int -> Int -> Visited -> Int
+consume_part2 :: Grid -> Position -> Dimension -> Int -> Int -> HashMap Position [Int] -> Int
 consume_part2 grid pos dim rotation count visited =
   if is_outside dim pos
     then count
@@ -103,17 +103,25 @@ consume_part2 grid pos dim rotation count visited =
           else consume_part2 grid next_pos dim rotation count' visited'
       )
   where
-    visited' = HashMap.insert pos True visited
+    until_now = lookupWithDefault [] pos visited
+    visited' = HashMap.insert pos (until_now ++ [rotation]) visited
 
     next_pos = get_movement rotation pos
     next_value = lookupWithDefault 0 next_pos grid
 
-    was_visited = lookupWithDefault False pos visited
+    next_rotations = rotate rotation
 
     count' =
-      if was_visited && (check_is_cycle (HashMap.insert (get_movement rotation next_pos) 1 grid) (next_pos, rotation) next_pos dim (rotate rotation))
+      if next_rotations `elem` until_now
         then count + 1
         else count
+
+-- was_visited = lookupWithDefault False pos visited
+
+-- count' =
+--   if was_visited && (check_is_cycle (HashMap.insert (get_movement rotation next_pos) 1 grid) (next_pos, rotation) next_pos dim (rotate rotation))
+--     then count + 1
+--     else count
 
 part2 = do
   (grid, pos, dim) <- getDataFromFile f_name
